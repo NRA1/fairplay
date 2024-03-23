@@ -4,6 +4,7 @@ use image::{ImageBuffer, Rgba, RgbaImage};
 use crate::{update, view};
 use crate::interface::editing::EditingView;
 use crate::interface::home::HomeView;
+use crate::models::modifier::Modifier;
 
 pub enum Fairplay {
     Home(HomeView),
@@ -15,9 +16,10 @@ pub enum Message {
     Started,
     OpenPicker,
     Open(RgbaImage),
-    Grayscale,
     Loaded,
-    ImageModified(ImageBuffer<Rgba<u8>, Vec<u8>>)
+    ImageModified(ImageBuffer<Rgba<u8>, Vec<u8>>),
+    ModifierAdded(Modifier),
+    ModifierRemoved(usize)
 }
 
 impl Application for Fairplay {

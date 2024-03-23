@@ -1,8 +1,8 @@
 use std::io::Cursor;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use iced::{Alignment, alignment, Command, Element, Length};
-use iced::widget::{Button, Column, Container, Row, Text};
+use iced::widget::{Button, Column, combo_box, Container, Row, Text};
 use iced::widget::image::Handle as ImageHandle;
 use iced_aw::{BOOTSTRAP_FONT, BootstrapIcon};
 use iced_aw::graphics::icons::icon_to_char;
@@ -13,6 +13,7 @@ use crate::fairplay::{Fairplay, Message};
 use crate::interface::components::with_spinner;
 use crate::interface::editing::EditingView;
 use crate::interface::View;
+use crate::models::modifier::Modifier;
 
 #[derive(Default)]
 pub struct HomeView {
@@ -48,7 +49,8 @@ impl View for HomeView {
                 *app = Fairplay::Editing(EditingView {
                     handle: ImageHandle::from_pixels(data.width(), data.height(), data.to_vec()),
                     image: Arc::new(data),
-                    loading: false
+                    loading: false,
+                    modifiers: vec![]
                 });
             }
             Message::Started => {
