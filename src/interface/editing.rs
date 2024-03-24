@@ -1,10 +1,11 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
 use iced::{Alignment, Background, Color, Command, Element, Length};
-use iced::widget::{button, Button, Column, combo_box, Container, container, pick_list, Row, Text};
+use iced::widget::{Button, Column, Container, container, pick_list, Row, Text};
 use iced::widget::image::Handle as ImageHandle;
 use iced_aw::{BOOTSTRAP_FONT, BootstrapIcon};
 use iced_aw::graphics::icons::icon_to_char;
-use image::{RgbaImage};
+use image::RgbaImage;
 
 use crate::fairplay::{Fairplay, Message};
 use crate::interface::components::{TransparentButtonStyle, with_spinner};
@@ -74,7 +75,7 @@ impl View for EditingView {
         }
 
         let image = iced::widget::image::viewer(self.handle.clone())
-            .max_scale(0.5)
+            .min_scale(0.5)
             .width(Length::FillPortion(4))
             .height(Length::Fill);
 

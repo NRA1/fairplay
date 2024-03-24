@@ -1,5 +1,5 @@
 
-use iced::{Application, Command};
+use iced::Command;
 
 use crate::interface::View;
 use crate::fairplay::{Fairplay, Message};

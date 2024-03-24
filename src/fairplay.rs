@@ -1,4 +1,4 @@
-use iced::{Application, Command, Element, executor, font, Sandbox, Theme};
+use iced::{Application, Command, Element, executor, font, Theme};
 use image::{ImageBuffer, Rgba, RgbaImage};
 
 use crate::{update, view};
@@ -16,7 +16,6 @@ pub enum Message {
     Started,
     OpenPicker,
     Open(RgbaImage),
-    Loaded,
     ImageModified(ImageBuffer<Rgba<u8>, Vec<u8>>),
     ModifierAdded(Modifier),
     ModifierRemoved(usize)
@@ -29,7 +28,7 @@ impl Application for Fairplay {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
-        (Self::Home(HomeView::default()), font::load(iced_aw::BOOTSTRAP_FONT_BYTES).map(|x| Message::Started))
+        (Self::Home(HomeView::default()), font::load(iced_aw::BOOTSTRAP_FONT_BYTES).map(|_| Message::Started))
     }
 
     fn title(&self) -> String {

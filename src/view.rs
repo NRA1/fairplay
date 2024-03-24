@@ -1,4 +1,4 @@
-use iced::{Application, Element};
+use iced::Element;
 use crate::fairplay::{Fairplay, Message};
 use crate::interface::View;
 

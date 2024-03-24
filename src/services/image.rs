@@ -1,6 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use image::{ImageBuffer, Pixel, Rgba, RgbaImage};
+
 use crate::models::modifier::Modifier;
 
 pub async fn apply(image: Arc<RgbaImage>, modifiers: Vec<Modifier>) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
