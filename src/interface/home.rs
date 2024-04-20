@@ -49,7 +49,8 @@ impl View for HomeView {
                     handle: ImageHandle::from_pixels(data.width(), data.height(), data.to_vec()),
                     image: Arc::new(data),
                     loading: false,
-                    modifiers: vec![]
+                    modifiers: vec![],
+                    selected_modifier: None,
                 });
             }
             Message::Started => {

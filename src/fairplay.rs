@@ -18,7 +18,10 @@ pub enum Message {
     Open(RgbaImage),
     ImageModified(ImageBuffer<Rgba<u8>, Vec<u8>>),
     ModifierAdded(Modifier),
-    ModifierRemoved(usize)
+    ModifierRemoved(usize),
+    ModifierOptionsChanged(Modifier),
+    ModifierOptionsApplied,
+    ModifierSelected(usize, Modifier)
 }
 
 impl Application for Fairplay {

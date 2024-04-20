@@ -1134,6 +1134,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fairplay"
+version = "0.1.0"
+dependencies = [
+ "iced",
+ "iced_aw",
+ "image 0.25.0",
+ "rfd",
+]
+
+[[package]]
 name = "fast-srgb8"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3541,16 +3551,6 @@ dependencies = [
  "pkg-config",
  "toml 0.8.11",
  "version-compare",
-]
-
-[[package]]
-name = "t23"
-version = "0.1.0"
-dependencies = [
- "iced",
- "iced_aw",
- "image 0.25.0",
- "rfd",
 ]
 
 [[package]]
