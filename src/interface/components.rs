@@ -6,7 +6,6 @@ use iced::widget::button::Appearance;
 use iced_aw::{floating_element, Spinner};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::widget::{Container, container};
-#[cfg(not(target_arch = "wasm32"))]
 use iced::{alignment, Background, Length};
 use crate::fairplay::Message;
 
