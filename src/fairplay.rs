@@ -3,6 +3,7 @@ use image::{ImageBuffer, Rgba, RgbaImage};
 
 use crate::{update, view};
 use crate::interface::editing::EditingView;
+use crate::interface::graph_editor;
 use crate::interface::home::HomeView;
 use crate::models::modifier::Modifier;
 
@@ -21,7 +22,8 @@ pub enum Message {
     ModifierRemoved(usize),
     ModifierOptionsChanged(Modifier),
     ModifierOptionsApplied,
-    ModifierSelected(usize, Modifier)
+    ModifierSelected(usize, Modifier),
+    Graph(graph_editor::Event)
 }
 
 impl Application for Fairplay {

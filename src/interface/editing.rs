@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use iced::{Alignment, Background, Color, Command, Element, Length};
+use iced::{Alignment, Background, Color, Command, Element, Length, Vector};
 use iced::widget::{Button, Column, Container, container, pick_list, Row, Space, Text};
 use iced::widget::image::Handle as ImageHandle;
 use iced_aw::{BOOTSTRAP_FONT, BootstrapIcon};
@@ -10,9 +10,13 @@ use image::RgbaImage;
 use crate::fairplay::{Fairplay, Message};
 use crate::interface::components::{SelectedButtonStyle, TransparentButtonStyle, with_spinner};
 use crate::interface::editing_components::modifier_options;
+use crate::interface::graph::graph;
 use crate::interface::View;
 use crate::models::modifier::{BoxBlurOptions, GrayscaleOptions, LightnessCorrectionOptions, MedianBlurOptions, Modifier, NegativeOptions, SobelOptions, ThresholdingOptions, UnsharpMaskingOptions};
 use crate::services;
+use crate::interface::graph_editor;
+use crate::interface::graph_editor::Event;
+use crate::models::node::Node;
 
 pub struct EditingView {
     pub(crate) image: Arc<RgbaImage>,
@@ -20,7 +24,11 @@ pub struct EditingView {
 
     pub(crate) loading: bool,
     pub(crate) modifiers: Vec<Modifier>,
-    pub(crate) selected_modifier: Option<(usize, Modifier)>
+    pub(crate) selected_modifier: Option<(usize, Modifier)>,
+
+    pub(crate) nodes: Vec<Node>,
+    pub(crate) scaling: f32,
+    pub(crate) translation: Vector
 }
 
 impl View for EditingView {
@@ -67,6 +75,18 @@ impl View for EditingView {
                     state.selected_modifier = Some((idx, modifier));
                 }
             }
+            Message::Graph(event) => match event {
+                Event::NodeMoved { index, offset } => {
+                    state.nodes[index].offset = offset;
+                }
+                Event::Scaled(scaling, translation) => {
+                    state.scaling = scaling;
+                    state.translation = translation;
+                }
+                Event::Translated(translation) => {
+                    state.translation = translation;
+                }
+            }
             _ => { panic!("Invalid message") }
         };
 
@@ -74,8 +94,7 @@ impl View for EditingView {
     }
 
     fn view(&self) -> Element<Message> {
-        let dropdown =
-        container(
+        let dropdown = container(
             pick_list(
                 vec![
                     Modifier::Negative(NegativeOptions::default()),
@@ -98,6 +117,8 @@ impl View for EditingView {
         )
             .width(Length::Fill)
             .padding(10);
+
+        let graph_editor = graph(&self.nodes, self.scaling, self.translation);
 
 
         let mut modifiers = Column::new();
@@ -144,7 +165,6 @@ impl View for EditingView {
             .height(Length::Fill);
 
 
-
         let panel = Container::new(
             Column::new()
                 .push(dropdown)
@@ -160,6 +180,7 @@ impl View for EditingView {
         );
 
         let row = Row::new()
+            .push(graph_editor)
             .push(image)
             .push(panel)
             .into();
