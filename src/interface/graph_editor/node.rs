@@ -4,6 +4,7 @@ use iced::advanced::Renderer as _;
 use iced::border::Radius;
 use iced::mouse::Cursor;
 use iced::Renderer;
+use iced::widget::Text;
 use iced::widget::text::layout;
 use crate::fairplay;
 
@@ -35,6 +36,7 @@ pub struct Node<'a, Theme>
     where
         Theme: StyleSheet,
 {
+    name: Element<'a, fairplay::Message, Theme, Renderer>,
     content: Element<'a, fairplay::Message, Theme, Renderer>,
     offset: Vector,
     pub edges: Vec<usize>,
@@ -43,14 +45,16 @@ pub struct Node<'a, Theme>
 
 impl<'a, Theme> Node<'a, Theme>
     where
-        Theme: StyleSheet,
+        Theme: StyleSheet + iced::widget::text::StyleSheet + iced::widget::text::StyleSheet + 'a,
 {
     pub fn new(
+        name: String,
         content: impl Into<Element<'a, fairplay::Message, Theme, Renderer>>,
         offset: Vector,
         edges: Vec<usize>,
     ) -> Self {
         Self {
+            name: Text::new(name).into(),
             content: content.into(),
             offset,
             edges,
@@ -73,7 +77,6 @@ impl<'a, Theme> Node<'a, Theme>
     }
 
     pub fn children(&self) -> Vec<Tree> {
-        // self.content.as_widget().children()
         vec![Tree::new(&self.content)]
     }
 
@@ -82,22 +85,22 @@ impl<'a, Theme> Node<'a, Theme>
     }
 
     pub fn state(&self) -> tree::State {
-        // self.content.as_widget().state()
         tree::State::new(State::default())
     }
 
     pub fn layout(&self, tree: &mut Tree, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
         let padding: Padding = [20, 5, 5, 5].into();
 
+        // let name = self.name.as_widget().layout(&mut tree.children[0], renderer, &limits);
+
         let content = self
             .content
             .as_widget()
-            .layout(&mut tree.children[0], renderer, &limits);
-            // .layout(tree, renderer, &limits.pad(padding)); //TODO: check
+            .layout(&mut tree.children[0], renderer, &limits.clone().shrink(padding));
 
         let node = content.size().expand(padding);
 
-        let offset = Vector::new(padding.left as f32, padding.top as f32);
+        let offset = Vector::new(padding.left, padding.top);
 
         layout::Node::with_children(node, vec![content.translate(offset)]).translate(self.offset)
     }
@@ -107,7 +110,7 @@ impl<'a, Theme> Node<'a, Theme>
         tree: &mut Tree,
         event: iced::Event,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: Cursor,
         renderer: &Renderer,
         clipboard: &mut dyn iced::advanced::Clipboard,
         shell: &mut Shell<'_, fairplay::Message>,
@@ -116,9 +119,7 @@ impl<'a, Theme> Node<'a, Theme>
         on_event: &dyn Fn(Event) -> fairplay::Message,
     ) -> event::Status {
         let bounds = layout.bounds();
-        let content_bounds = layout.children().next().unwrap().bounds();
-        let in_bounds =
-            bounds.contains(cursor_position) && !content_bounds.contains(cursor_position);
+        let in_bounds = cursor.is_over(bounds);
 
         let state = tree.state.downcast_mut::<State>();
 
@@ -126,7 +127,7 @@ impl<'a, Theme> Node<'a, Theme>
             if let iced::Event::Mouse(event) = event {
                 match event {
                     mouse::Event::CursorMoved { .. } => {
-                        *offset = cursor_position - *started_at;
+                        *offset = cursor.position().expect("Cursor not set") - *started_at;
                         return event::Status::Captured;
                     }
                     mouse::Event::ButtonReleased(mouse::Button::Left) => {
@@ -135,6 +136,13 @@ impl<'a, Theme> Node<'a, Theme>
                             offset: self.offset + *offset,
                         }));
                         *state = in_bounds.then_some(State::Hovered).unwrap_or(State::Idle);
+                    }
+                    mouse::Event::CursorLeft => {
+                        shell.publish((on_event)(Event::NodeMoved {
+                            index,
+                            offset: self.offset + *offset,
+                        }));
+                        *state = State::Idle;
                     }
                     _ => {}
                 }
@@ -146,7 +154,7 @@ impl<'a, Theme> Node<'a, Theme>
                 tree.children.first_mut().unwrap(),
                 event.clone(),
                 layout.children().next().unwrap(),
-                Cursor::Available(cursor_position),
+                cursor,
                 renderer,
                 clipboard,
                 shell,
@@ -172,7 +180,7 @@ impl<'a, Theme> Node<'a, Theme>
                         if matches!(*state, State::Hovered) =>
                             {
                                 *state = State::Translating {
-                                    started_at: cursor_position,
+                                    started_at: cursor.position().expect("Cursor not set"),
                                     offset: Vector::default(),
                                 };
                                 return event::Status::Captured;
@@ -195,7 +203,7 @@ impl<'a, Theme> Node<'a, Theme>
         theme: &Theme,
         style: &renderer::Style,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: Cursor,
         viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_ref::<State>();
@@ -217,6 +225,7 @@ impl<'a, Theme> Node<'a, Theme>
                     .background
                     .unwrap_or_else(|| Color::TRANSPARENT.into()),
             );
+
             self.content.as_widget().draw(
                 tree.children.first().unwrap(),
                 // tree,
@@ -226,7 +235,7 @@ impl<'a, Theme> Node<'a, Theme>
                     text_color: appearance.text_color.unwrap_or(style.text_color),
                 },
                 layout.children().next().unwrap(),
-                Cursor::Available(cursor_position),
+                cursor,
                 viewport
             )
         };
@@ -244,7 +253,7 @@ impl<'a, Theme> Node<'a, Theme>
         &self,
         tree: &Tree,
         _layout: Layout<'_>,
-        _cursor_position: Point,
+        _cursor: Cursor,
         _viewport: &Rectangle,
         _renderer: &Renderer,
     ) -> mouse::Interaction {

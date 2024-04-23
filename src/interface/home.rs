@@ -47,40 +47,7 @@ impl View for HomeView {
                 )
             }
             Message::Open(data) => {
-                let nodes = vec![
-                    Node {
-                        kind: node::Kind::A,
-                        offset: Vector::new(50.0, 50.0),
-                        edges: vec![],
-                    },
-                    // Node {
-                    //     kind: node::Kind::B,
-                    //     offset: Vector::new(150.0, 100.0),
-                    //     edges: vec![2, 3],
-                    // },
-                    // Node {
-                    //     kind: node::Kind::C,
-                    //     offset: Vector::new(350.0, 25.0),
-                    //     edges: vec![3],
-                    // },
-                    // Node {
-                    //     kind: node::Kind::D,
-                    //     offset: Vector::new(500.0, 200.0),
-                    //     edges: vec![],
-                    // },
-                ];
-
-                *app = Fairplay::Editing(EditingView {
-                    handle: ImageHandle::from_pixels(data.width(), data.height(), data.to_vec()),
-                    image: Arc::new(data),
-                    loading: false,
-                    modifiers: vec![],
-                    selected_modifier: None,
-
-                    nodes,
-                    scaling: 1.0,
-                    translation: Vector::new(0.0, 0.0)
-                });
+                *app = Fairplay::Editing(EditingView::new(data));
             }
             Message::Started => {
 

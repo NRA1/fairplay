@@ -1,5 +1,3 @@
-workspace = { members = ["graph_editor"] }
-
 [package]
 name = "fairplay"
 version = "0.1.0"

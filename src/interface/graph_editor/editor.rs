@@ -39,7 +39,7 @@ impl Interaction {
 
 pub struct Editor<'a, Theme>
     where
-        Theme: StyleSheet + node::StyleSheet
+        Theme: StyleSheet + node::StyleSheet + iced::widget::text::StyleSheet
 {
     nodes: Vec<Node<'a, Theme>>,
     scaling: f32,
@@ -51,7 +51,7 @@ pub struct Editor<'a, Theme>
 
 impl<'a, Theme> Editor<'a, Theme>
     where
-        Theme: StyleSheet + node::StyleSheet,
+        Theme: StyleSheet + node::StyleSheet + iced::widget::text::StyleSheet,
 {
     const MIN_SCALING: f32 = 0.1;
     const MAX_SCALING: f32 = 5.0;
@@ -100,15 +100,17 @@ impl<'a, Theme> Editor<'a, Theme>
         })
     }
 
-    fn transform_cursor(&self, cursor_position: Point) -> Point {
-        let Point { x, y } = cursor_position;
+    fn transform_cursor(&self, cursor: Cursor) -> Cursor {
+        if let Some(Point { x, y }) = cursor.position() {
+            let glam::Vec3 { x, y, .. } = self
+                .transformation()
+                .inverse()
+                .transform_point3(glam::Vec3::new(x, y, 1.0));
 
-        let glam::Vec3 { x, y, .. } = self
-            .transformation()
-            .inverse()
-            .transform_point3(glam::Vec3::new(x, y, 1.0));
-
-        Point::new(x, y)
+            Cursor::Available(Point::new(x, y))
+        } else {
+            cursor
+        }
     }
 
     fn zoom(&mut self, y: f32, position: Point) {
@@ -140,7 +142,7 @@ impl<'a, Theme> Widget<fairplay::Message, Theme, Renderer>
 for Editor<'a, Theme>
     where
         // Message: 'a,
-        Theme: StyleSheet + node::StyleSheet,
+        Theme: StyleSheet + node::StyleSheet + iced::widget::text::StyleSheet,
 {
     fn tag(&self) -> tree::Tag {
         tree::Tag::of::<Interaction>()
@@ -209,9 +211,9 @@ for Editor<'a, Theme>
 
         let bounds = layout.bounds();
 
-        let contains_cursor = cursor.position().is_some_and(|pos| bounds.contains(pos));
+        let contains_cursor = cursor.is_over(bounds);
 
-        let transformed_cursor = cursor.position().map(|pos| self.transform_cursor(pos));
+        let transformed_cursor = self.transform_cursor(cursor);
 
         let status = self
             .nodes
@@ -224,7 +226,7 @@ for Editor<'a, Theme>
                     state,
                     event.clone(),
                     layout,
-                    transformed_cursor.expect("Cursor pos null!"),
+                    transformed_cursor,
                     renderer,
                     clipboard,
                     shell,
@@ -343,7 +345,7 @@ for Editor<'a, Theme>
     ) {
         let interaction = tree.state.downcast_ref::<Interaction>();
 
-        let transformed_cursor = cursor.position().map(|pos| self.transform_cursor(pos));
+        let transformed_cursor = self.transform_cursor(cursor);
 
         let appearance = <Theme as StyleSheet>::appearance(theme, self.style);
 
@@ -385,7 +387,7 @@ for Editor<'a, Theme>
                                 theme,
                                 style,
                                 layout,
-                                transformed_cursor.expect("Cursor pos not set"),
+                                transformed_cursor,
                                 viewport,
                             )
                         });
@@ -486,14 +488,14 @@ for Editor<'a, Theme>
         viewport: &Rectangle,
         renderer: &iced::Renderer,
     ) -> iced::mouse::Interaction {
-        let transformed_cursor = cursor.position().map(|pos| self.transform_cursor(pos));
+        let transformed_cursor = self.transform_cursor(cursor);
 
         self.nodes
             .iter()
             .zip(&tree.children)
             .zip(layout.children())
             .map(|((node, state), layout)| {
-                node.mouse_interaction(state, layout, transformed_cursor.expect("Cursor position not set"), viewport, renderer)
+                node.mouse_interaction(state, layout, transformed_cursor, viewport, renderer)
             })
             .max()
             .unwrap_or_default()
@@ -503,7 +505,7 @@ for Editor<'a, Theme>
 impl<'a, Theme> From<Editor<'a, Theme>>
 for Element<'a, fairplay::Message, Theme, Renderer>
     where
-        Theme: StyleSheet + node::StyleSheet + 'a,
+        Theme: StyleSheet + node::StyleSheet + iced::widget::text::StyleSheet + 'a,
         // Message: 'a
 {
     fn from(editor: Editor<'a, Theme>) -> Self {

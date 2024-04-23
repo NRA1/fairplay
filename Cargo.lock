@@ -1515,15 +1515,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "graph_editor"
-version = "0.1.0"
-dependencies = [
- "glam 0.27.0",
- "iced",
- "iced_graphics",
-]
-
-[[package]]
 name = "guillotiere"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
