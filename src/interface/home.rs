@@ -1,9 +1,7 @@
 use std::io::Cursor;
-use std::sync::Arc;
 
 use iced::{Alignment, alignment, Command, Element, Length};
 use iced::widget::{Button, Column, Container, Row, Text};
-use iced::widget::image::Handle as ImageHandle;
 use iced_aw::{BOOTSTRAP_FONT, BootstrapIcon};
 use iced_aw::graphics::icons::icon_to_char;
 use image::io::Reader as ImageReader;
@@ -45,13 +43,7 @@ impl View for HomeView {
                 )
             }
             Message::Open(data) => {
-                *app = Fairplay::Editing(EditingView {
-                    handle: ImageHandle::from_pixels(data.width(), data.height(), data.to_vec()),
-                    image: Arc::new(data),
-                    loading: false,
-                    modifiers: vec![],
-                    selected_modifier: None,
-                });
+                *app = Fairplay::Editing(EditingView::new(data));
             }
             Message::Started => {
 

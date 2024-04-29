@@ -7,11 +7,13 @@ edition = "2021"
 [dependencies]
 rfd = { version = "0.14.0", default-features = false, features = ["tokio", "xdg-portal"] }
 image = "0.25.0"
+undo = "0.48.0"
+once_cell = "1.19.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 iced = { version = "0.12.1", features = ["wgpu", "image", "tokio"] }
-iced_aw = { version = "0.8.0", features = ["icons", "split", "spinner"] }
+iced_aw = { version = "0.8.0", features = ["icons", "split", "spinner", "menu"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 iced = { version = "0.12.1", features = ["webgl", "image", "tokio"] }
-iced_aw = { version = "0.8.0", default-features = false, features = ["icons"] }
+iced_aw = { version = "0.8.0", default-features = false, features = ["icons", "menu"] }

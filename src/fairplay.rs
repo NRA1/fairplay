@@ -21,7 +21,11 @@ pub enum Message {
     ModifierRemoved(usize),
     ModifierOptionsChanged(Modifier),
     ModifierOptionsApplied,
-    ModifierSelected(usize, Modifier)
+    ModifierSelected(usize, Modifier),
+    Undo,
+    Redo,
+    Save,
+    Saved
 }
 
 impl Application for Fairplay {

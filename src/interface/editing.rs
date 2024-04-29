@@ -1,18 +1,29 @@
-use std::sync::Arc;
+use std::io::{Cursor, Read};
+use std::sync::{Arc, Mutex};
 
-use iced::{Alignment, Background, Color, Command, Element, Length};
-use iced::widget::{Button, Column, Container, container, pick_list, Row, Space, Text};
+use iced::{Alignment, Application, Background, Color, Command, Element, Length};
+use iced::futures::AsyncWriteExt;
+use iced::widget::{Button, button, Column, Container, container, pick_list, Row, Space, Text};
 use iced::widget::image::Handle as ImageHandle;
 use iced_aw::{BOOTSTRAP_FONT, BootstrapIcon};
 use iced_aw::graphics::icons::icon_to_char;
-use image::RgbaImage;
+use image::{ImageFormat, RgbaImage};
+use image::io::Reader as ImageReader;
+use once_cell::sync::Lazy;
+use rfd::AsyncFileDialog;
+use undo::Record;
 
 use crate::fairplay::{Fairplay, Message};
 use crate::interface::components::{SelectedButtonStyle, TransparentButtonStyle, with_spinner};
 use crate::interface::editing_components::modifier_options;
 use crate::interface::View;
+use crate::models::history::{Action, ModifierAdded, ModifierOptionsApplied, ModifierRemoved, ModifierSelected};
 use crate::models::modifier::{BoxBlurOptions, ChannelOptions, GaussianBlurOptions, GrayscaleOptions, LightnessCorrectionOptions, MedianBlurOptions, Modifier, NegativeOptions, SobelOptions, ThresholdingOptions, UnsharpMaskingOptions};
 use crate::services;
+
+static RECORD: Lazy<Mutex<Record<Action>>> = Lazy::new(|| {
+    Mutex::new(Record::new())
+});
 
 pub struct EditingView {
     pub(crate) image: Arc<RgbaImage>,
@@ -20,7 +31,19 @@ pub struct EditingView {
 
     pub(crate) loading: bool,
     pub(crate) modifiers: Vec<Modifier>,
-    pub(crate) selected_modifier: Option<(usize, Modifier)>
+    pub(crate) selected_modifier: Option<(usize, Modifier)>,
+}
+
+impl EditingView {
+    pub fn new(img: RgbaImage) -> Self {
+        EditingView {
+            handle: ImageHandle::from_pixels(img.width(), img.height(), img.to_vec()),
+            image: Arc::new(img),
+            loading: false,
+            modifiers: vec![],
+            selected_modifier: None,
+        }
+    }
 }
 
 impl View for EditingView {
@@ -29,18 +52,17 @@ impl View for EditingView {
         match message {
             Message::ModifierAdded(modifier) => {
                 state.loading = true;
-                state.modifiers.push(modifier.clone());
-                state.selected_modifier = Some((state.modifiers.len() - 1, modifier));
+                let r = RECORD.lock();
+                if let Ok(mut rrr) = r {
+                    rrr.apply(state, Action::ModifierAdded(ModifierAdded::new(modifier)));
+                } else {
+                    println!("Failed to acquire lock");
+                }
                 return Command::perform(services::image::apply(state.image.clone(), state.modifiers.clone()), |r| Message::ImageModified(r));
             }
             Message::ModifierRemoved(idx) => {
                 state.loading = true;
-                if let Some((i, _)) = &state.selected_modifier {
-                    if *i == idx {
-                        state.selected_modifier = None;
-                    }
-                }
-                state.modifiers.remove(idx);
+                RECORD.lock().unwrap().apply(state, Action::ModifierRemoved(ModifierRemoved::new(idx)));
                 return Command::perform(services::image::apply(state.image.clone(), state.modifiers.clone()), |r| Message::ImageModified(r));
             }
             Message::ImageModified(image) => {
@@ -52,21 +74,68 @@ impl View for EditingView {
             }
             Message::ModifierOptionsApplied => {
                 state.loading = true;
-                let selected = state.selected_modifier.clone().unwrap();
-                state.modifiers[selected.0] = selected.1;
+                RECORD.lock().unwrap().apply(state, Action::ModifierOptionsApplied(ModifierOptionsApplied::new()));
                 return Command::perform(services::image::apply(state.image.clone(), state.modifiers.clone()), |r| Message::ImageModified(r));
             }
             Message::ModifierSelected(idx, modifier) => {
-                if let Some((i, _)) = &state.selected_modifier {
-                    if *i == idx {
-                        state.selected_modifier = None;
-                    } else {
-                        state.selected_modifier = Some((idx, modifier));
-                    }
-                } else {
-                    state.selected_modifier = Some((idx, modifier));
-                }
+                RECORD.lock().unwrap().apply(state, Action::ModifierSelected(ModifierSelected::new(idx, modifier)))
             }
+            Message::Undo => {
+                RECORD.lock().unwrap().undo(state);
+                return Command::perform(services::image::apply(state.image.clone(), state.modifiers.clone()), |r| Message::ImageModified(r));
+            }
+            Message::Redo => {
+                RECORD.lock().unwrap().redo(state);
+                return Command::perform(services::image::apply(state.image.clone(), state.modifiers.clone()), |r| Message::ImageModified(r));
+            }
+            Message::OpenPicker => {
+                state.loading = true;
+
+                return Command::perform(async {
+                    let file = AsyncFileDialog::new()
+                        .add_filter("image", &["png", "jpg"])
+                        .pick_file()
+                        .await;
+                    file.unwrap().read().await
+                }, |data| {
+                    let img = ImageReader::new(Cursor::new(data))
+                        .with_guessed_format()
+                        .unwrap()
+                        .decode()
+                        .unwrap()
+                        .into_rgba8();
+
+                    Message::Open(img)
+                }
+                )
+            }
+            Message::Save => {
+                let image = state.image.clone();
+                let modifiers = state.modifiers.clone();
+                return Command::perform(async {
+                    let mut handle = AsyncFileDialog::new()
+                        .set_file_name("edited.png")
+                        .save_file()
+                        .await;
+                    if let Some(handle) = handle {
+                        let img = services::image::apply(image, modifiers).await;
+                        let mut mem = Cursor::new(Vec::<u8>::new());
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        let format = ImageFormat::from_path(handle.path()).unwrap();
+                        #[cfg(target_arch = "wasm32")]
+                        let format = ImageFormat::Png;
+
+                        img.write_to(&mut mem, format).expect("Error writing to memory buffer");
+                        handle.write(mem.get_ref()).await.expect("Error saving!");
+                    }
+                    ()
+                }, |_| Message::Saved);
+            }
+            Message::Open(data) => {
+                *app = Fairplay::Editing(EditingView::new(data));
+            }
+            Message::Saved => { }
             _ => { panic!("Invalid message") }
         };
 
@@ -146,7 +215,34 @@ impl View for EditingView {
             .width(Length::FillPortion(4))
             .height(Length::Fill);
 
-
+        let menu = Container::new(
+            Row::new()
+                .push(
+                    button("Open").on_press(Message::OpenPicker)
+                )
+                .push(
+                    button("Save").on_press(Message::Save)
+                )
+                .push(
+                    button("Undo").on_press_maybe(
+                        if RECORD.lock().unwrap().can_undo() {
+                            Some(Message::Undo)
+                        } else { None }
+                    )
+                )
+                .push(
+                    button("Redo").on_press_maybe(
+                        if RECORD.lock().unwrap().can_redo() {
+                            Some(Message::Redo)
+                        } else { None }
+                    )
+                )
+                .width(Length::Fill)
+                .align_items(Alignment::Start)
+                .spacing(10)
+        ).style(container::Appearance::default()
+            .with_background(Background::from(Color::new(0.0, 0.0, 0.0, 0.3)))
+        );
 
         let panel = Container::new(
             Column::new()
@@ -165,12 +261,17 @@ impl View for EditingView {
         let row = Row::new()
             .push(image)
             .push(panel)
+            .height(Length::Fill);
+
+        let column = Column::new()
+            .push(menu)
+            .push(row)
             .into();
 
         if self.loading {
-            with_spinner(row)
+            with_spinner(column)
         } else {
-            row
+            column
         }
     }
 }
