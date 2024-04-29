@@ -5,10 +5,13 @@ pub enum Modifier {
     Negative(NegativeOptions),
     Thresholding(ThresholdingOptions),
     Grayscale(GrayscaleOptions),
+    Channels(ChannelOptions),
     LightnessCorrection(LightnessCorrectionOptions),
     BoxBlur(BoxBlurOptions),
+    GaussianBlur(GaussianBlurOptions),
     MedianBlur(MedianBlurOptions),
     Sobel(SobelOptions),
+    Laplace,
     Sharpening,
     UnsharpMasking(UnsharpMaskingOptions)
 }
@@ -20,10 +23,13 @@ impl Display for Modifier {
                 Modifier::Grayscale(_) => { "Grayscale" }
                 Modifier::Negative(_) => { "Negative" }
                 Modifier::Thresholding(_) => { "Thresholding" }
+                Modifier::Channels(_) => { "Channels" }
                 Modifier::LightnessCorrection(_) => { "Lightness correction" }
                 Modifier::BoxBlur(_) => { "Box blur" }
+                Modifier::GaussianBlur(_) => { "Gaussian blur" }
                 Modifier::MedianBlur(_) => { "Median blur" }
                 Modifier::Sobel(_) => { "Sobel" }
+                Modifier::Laplace => { "Laplace" }
                 Modifier::Sharpening => { "Sharpening" }
                 Modifier::UnsharpMasking(_) => { "Unsharp masking" }
             }
@@ -77,6 +83,29 @@ impl Default for GrayscaleOptions {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct ChannelOptions {
+    pub red_enabled: bool,
+    pub red_weight: u8,
+    pub blue_enabled: bool,
+    pub blue_weight: u8,
+    pub green_enabled: bool,
+    pub green_weight: u8
+}
+
+impl Default for ChannelOptions {
+    fn default() -> Self {
+        ChannelOptions {
+            red_enabled: true,
+            red_weight: 100,
+            green_weight: 100,
+            blue_weight: 100,
+            blue_enabled: true,
+            green_enabled: true,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct LightnessCorrectionOptions {
     pub exponent: u8
 }
@@ -97,6 +126,19 @@ pub struct BoxBlurOptions {
 impl Default for BoxBlurOptions {
     fn default() -> Self {
         BoxBlurOptions {
+            size: 3,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GaussianBlurOptions {
+    pub size: u8
+}
+
+impl Default for GaussianBlurOptions {
+    fn default() -> Self {
+        GaussianBlurOptions {
             size: 3,
         }
     }

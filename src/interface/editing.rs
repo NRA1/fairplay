@@ -11,7 +11,7 @@ use crate::fairplay::{Fairplay, Message};
 use crate::interface::components::{SelectedButtonStyle, TransparentButtonStyle, with_spinner};
 use crate::interface::editing_components::modifier_options;
 use crate::interface::View;
-use crate::models::modifier::{BoxBlurOptions, GrayscaleOptions, LightnessCorrectionOptions, MedianBlurOptions, Modifier, NegativeOptions, SobelOptions, ThresholdingOptions, UnsharpMaskingOptions};
+use crate::models::modifier::{BoxBlurOptions, ChannelOptions, GaussianBlurOptions, GrayscaleOptions, LightnessCorrectionOptions, MedianBlurOptions, Modifier, NegativeOptions, SobelOptions, ThresholdingOptions, UnsharpMaskingOptions};
 use crate::services;
 
 pub struct EditingView {
@@ -81,10 +81,13 @@ impl View for EditingView {
                     Modifier::Negative(NegativeOptions::default()),
                     Modifier::Thresholding(ThresholdingOptions::default()),
                     Modifier::Grayscale(GrayscaleOptions::default()),
+                    Modifier::Channels(ChannelOptions::default()),
                     Modifier::LightnessCorrection(LightnessCorrectionOptions::default()),
                     Modifier::BoxBlur(BoxBlurOptions::default()),
+                    Modifier::GaussianBlur(GaussianBlurOptions::default()),
                     Modifier::MedianBlur(MedianBlurOptions::default()),
                     Modifier::Sobel(SobelOptions::default()),
+                    Modifier::Laplace,
                     Modifier::Sharpening,
                     Modifier::UnsharpMasking(UnsharpMaskingOptions::default()),
                 ],
