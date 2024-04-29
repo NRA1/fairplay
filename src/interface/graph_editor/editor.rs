@@ -153,10 +153,6 @@ for Editor<'a, Theme>
     }
 
     fn children(&self) -> Vec<Tree> {
-        // self.nodes
-        //     .iter()
-        //     .map(|x| Tree::new(x.into()))
-        //     .collect()
         self.nodes
             .iter()
             .map(|node| Tree {

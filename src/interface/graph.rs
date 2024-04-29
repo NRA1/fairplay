@@ -10,7 +10,7 @@ use crate::models::node;
 pub fn graph<'a>(nodes: &'a Vec<node::Node>, scaling: f32, translation: Vector) -> Element<'a, Message> {
     let nodes = nodes
         .iter()
-        .map(|node| graph_editor::Node::new(format!("{}", node.modifier), modifier_options(&node.modifier), node.offset, vec![]))
+        .map(|node| graph_editor::Node::new(format!("{}", node.modifier), modifier_options(&node.modifier), node.offset, vec!["Test1".to_string()], vec!["Test2".to_string()]))
         .collect();
 
     container(

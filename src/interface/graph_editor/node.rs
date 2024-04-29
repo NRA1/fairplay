@@ -1,14 +1,26 @@
+use std::ops::Index;
 use iced::advanced::widget::{tree, Tree};
-use iced::{event, advanced::layout, mouse, advanced::renderer, Element, advanced::Layout, advanced::Shell, Point, Vector, Rectangle, Padding, Border, Color, Background, Size};
+use iced::{event, advanced::layout, mouse, advanced::renderer, Element, advanced::Layout, advanced::Shell, Point, Vector, Rectangle, Padding, Border, Color, Background, Size, Length, Alignment};
 use iced::advanced::Renderer as _;
 use iced::border::Radius;
 use iced::mouse::Cursor;
 use iced::Renderer;
-use iced::widget::Text;
-use iced::widget::text::layout;
+use iced::widget::{canvas, Column, Row, Space, Text, text};
 use crate::fairplay;
+use crate::interface::graph_editor;
+use crate::interface::graph_editor::circle::{Circle};
 
 use super::editor::Event;
+
+pub enum ConnectorDirection {
+    In,
+    Out
+}
+
+pub struct Connector {
+    pub name: String,
+    pub direction: ConnectorDirection,
+}
 
 #[derive(Debug)]
 pub enum State {
@@ -34,30 +46,40 @@ impl Default for State {
 
 pub struct Node<'a, Theme>
     where
-        Theme: StyleSheet,
+        Theme: StyleSheet + iced::widget::text::StyleSheet + iced::widget::text::StyleSheet + 'a,
 {
     name: Element<'a, fairplay::Message, Theme, Renderer>,
     content: Element<'a, fairplay::Message, Theme, Renderer>,
     offset: Vector,
+    connectors_in: Vec<Connector>,
+    connectors_out: Vec<Connector>,
+    connectors_widget: Element<'a, fairplay::Message, Theme, Renderer>,
     pub edges: Vec<usize>,
     style: <Theme as StyleSheet>::Style,
 }
 
 impl<'a, Theme> Node<'a, Theme>
     where
-        Theme: StyleSheet + iced::widget::text::StyleSheet + iced::widget::text::StyleSheet + 'a,
+        Theme: StyleSheet + iced::widget::text::StyleSheet + iced::widget::text::StyleSheet + 'a, iced::Element<'a, fairplay::Message, Theme, iced::Renderer>: From<iced::widget::Column<'a, fairplay::Message>>
 {
     pub fn new(
         name: String,
         content: impl Into<Element<'a, fairplay::Message, Theme, Renderer>>,
         offset: Vector,
-        edges: Vec<usize>,
+        connectors_in: Vec<String>,
+        connectors_out: Vec<String>,
     ) -> Self {
+        let connectors_in = connectors_in.iter().map(move |x| Connector { name: x.clone(), direction: ConnectorDirection::In }).collect();
+        let connectors_out = connectors_out.iter().map(move |x| Connector { name: x.clone(), direction: ConnectorDirection::Out }).collect();
+
         Self {
-            name: Text::new(name).into(),
+            name: Text::new(name).size(20).into(),
             content: content.into(),
             offset,
-            edges,
+            connectors_widget: Self::build_connectors_widget(&connectors_in, &connectors_out),
+            connectors_in,
+            connectors_out,
+            edges: vec![],
             style: Default::default(),
         }
     }
@@ -66,22 +88,64 @@ impl<'a, Theme> Node<'a, Theme>
         self.style = style.into();
         self
     }
+
+    fn build_connectors_widget(inc: &Vec<Connector>, outc: &Vec<Connector>) -> Element<'a, fairplay::Message, Theme, Renderer> {
+        let mut inc_it = inc.iter();
+        let mut outc_it = outc.iter();
+
+        let in_conn = |conn: &Connector| -> Element<fairplay::Message> {
+            Row::new()
+                .push(canvas(Circle::new()).width(Length::Fixed(10.0)).height(Length::Fixed(10.0)))
+                .push(text(conn.name.clone()))
+                .spacing(10)
+                .align_items(Alignment::Center)
+                .into()
+        };
+        let out_conn = |conn: &Connector| -> Element<fairplay::Message> {
+            Row::new()
+                .push(text(conn.name.clone()))
+                .push(canvas(Circle::new()).width(Length::Fixed(10.0)).height(Length::Fixed(10.0)))
+                .spacing(10)
+                .align_items(Alignment::Center)
+                .into()
+        };
+
+        let mut col = Column::new();
+
+        loop {
+            let fst = inc_it.next();
+            let snd = outc_it.next();
+
+            if fst.is_none() && snd.is_none() {
+                break;
+            }
+
+            col = col.push(
+                Row::new()
+                    .push_maybe(fst.map(|x| in_conn(x)))
+                    .push(Space::new(Length::Fill, Length::Shrink))
+                    .push_maybe(snd.map(|x| out_conn(x)))
+            );
+        }
+
+        col.into()
+    }
 }
 
 impl<'a, Theme> Node<'a, Theme>
     where
-        Theme: StyleSheet,
+        Theme: StyleSheet + iced::widget::text::StyleSheet,
 {
     pub fn tag(&self) -> tree::Tag {
         tree::Tag::of::<State>()
     }
 
     pub fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(&self.content)]
+        vec![Tree::new(&self.content), Tree::new(&self.name), Tree::new(&self.connectors_widget)]
     }
 
     pub fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(&[&self.content]);
+        tree.diff_children(&[&self.content, &self.name, &self.connectors_widget]);
     }
 
     pub fn state(&self) -> tree::State {
@@ -89,20 +153,30 @@ impl<'a, Theme> Node<'a, Theme>
     }
 
     pub fn layout(&self, tree: &mut Tree, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
-        let padding: Padding = [20, 5, 5, 5].into();
+        let padding: Padding = [5, 5, 5, 5].into();
 
-        // let name = self.name.as_widget().layout(&mut tree.children[0], renderer, &limits);
+        let name = self.name.as_widget().layout(&mut tree.children[1], renderer, &limits.clone().shrink(padding));
+
+        let content_padding: Padding = [5.0, 5.0, 5.0, 5.0].into();
+
+        let connectors = self.connectors_widget.as_widget()
+            .layout(&mut tree.children[2], renderer, &limits.clone().shrink(content_padding));
 
         let content = self
             .content
             .as_widget()
-            .layout(&mut tree.children[0], renderer, &limits.clone().shrink(padding));
+            .layout(&mut tree.children[0], renderer, &limits.clone().shrink(content_padding));
 
-        let node = content.size().expand(padding);
 
-        let offset = Vector::new(padding.left, padding.top);
+        let node = Size {
+            width: content.size().width.max(name.size().width).max(connectors.size().width),
+            height: name.size().height + content.size().height + connectors.size().height,
+        } .expand(padding);
 
-        layout::Node::with_children(node, vec![content.translate(offset)]).translate(self.offset)
+        let conn_offset = Vector::new(padding.left, name.size().height + content_padding.top);
+        let cont_offset = Vector::new(padding.left, name.size().height + content_padding.top + connectors.size().height);
+
+        layout::Node::with_children(node, vec![content.translate(cont_offset), name.translate(Vector::new(15.0, 5.0)), connectors.translate(conn_offset)]).translate(self.offset)
     }
 
     pub fn on_event(
@@ -119,7 +193,9 @@ impl<'a, Theme> Node<'a, Theme>
         on_event: &dyn Fn(Event) -> fairplay::Message,
     ) -> event::Status {
         let bounds = layout.bounds();
-        let in_bounds = cursor.is_over(bounds);
+        let connectors = layout.children().nth(2).expect("Index out of range").bounds();
+        let content = layout.children().nth(0).expect("Index out of range").bounds();
+        let in_bounds = cursor.is_over(bounds) && !cursor.is_over(connectors) && !cursor.is_over(content);
 
         let state = tree.state.downcast_mut::<State>();
 
@@ -208,7 +284,7 @@ impl<'a, Theme> Node<'a, Theme>
     ) {
         let state = tree.state.downcast_ref::<State>();
 
-        let appearance = theme.appearance(self.style);
+        let appearance = StyleSheet::appearance(theme, self.style);
 
         let draw = |renderer: &mut Renderer| {
             renderer.fill_quad(
@@ -224,6 +300,30 @@ impl<'a, Theme> Node<'a, Theme>
                 appearance
                     .background
                     .unwrap_or_else(|| Color::TRANSPARENT.into()),
+            );
+
+            self.name.as_widget().draw(
+                &tree.children[1],
+                renderer,
+                theme,
+                &renderer::Style {
+                    text_color: appearance.text_color.unwrap_or(style.text_color),
+                },
+                layout.children().nth(1).unwrap(),
+                cursor,
+                viewport
+            );
+
+            self.connectors_widget.as_widget().draw(
+                &tree.children[2],
+                renderer,
+                theme,
+                &renderer::Style {
+                    text_color: appearance.text_color.unwrap_or(style.text_color),
+                },
+                layout.children().nth(2).unwrap(),
+                cursor,
+                viewport
             );
 
             self.content.as_widget().draw(
