@@ -15,5 +15,5 @@ iced = { version = "0.12.1", features = ["wgpu", "image", "tokio"] }
 iced_aw = { version = "0.8.0", features = ["icons", "split", "spinner", "menu"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-iced = { version = "0.12.1", features = ["webgl", "image", "tokio"] }
+iced = { version = "0.12.1", features = ["webgl", "image", "tokio", "canvas"] }
 iced_aw = { version = "0.8.0", default-features = false, features = ["icons", "menu"] }

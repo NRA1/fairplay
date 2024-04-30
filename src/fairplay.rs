@@ -3,6 +3,7 @@ use image::{ImageBuffer, Rgba, RgbaImage};
 
 use crate::{update, view};
 use crate::interface::editing::EditingView;
+use crate::interface::histogram::Histogram;
 use crate::interface::home::HomeView;
 use crate::models::modifier::Modifier;
 
@@ -25,7 +26,9 @@ pub enum Message {
     Undo,
     Redo,
     Save,
-    Saved
+    Saved,
+    HistogramRecalculated(Histogram),
+    ToggleHistograms
 }
 
 impl Application for Fairplay {

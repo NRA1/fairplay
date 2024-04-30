@@ -16,6 +16,7 @@ use undo::Record;
 use crate::fairplay::{Fairplay, Message};
 use crate::interface::components::{SelectedButtonStyle, TransparentButtonStyle, with_spinner};
 use crate::interface::editing_components::modifier_options;
+use crate::interface::histogram::{histogram, Histogram};
 use crate::interface::View;
 use crate::models::history::{Action, ModifierAdded, ModifierOptionsApplied, ModifierRemoved, ModifierSelected};
 use crate::models::modifier::{BoxBlurOptions, ChannelOptions, GaussianBlurOptions, GrayscaleOptions, LightnessCorrectionOptions, MedianBlurOptions, Modifier, NegativeOptions, SobelOptions, ThresholdingOptions, UnsharpMaskingOptions};
@@ -32,6 +33,9 @@ pub struct EditingView {
     pub(crate) loading: bool,
     pub(crate) modifiers: Vec<Modifier>,
     pub(crate) selected_modifier: Option<(usize, Modifier)>,
+
+    pub(crate) histogram_data: Histogram,
+    pub(crate) histogram_visible: bool
 }
 
 impl EditingView {
@@ -42,6 +46,8 @@ impl EditingView {
             loading: false,
             modifiers: vec![],
             selected_modifier: None,
+            histogram_data: Histogram::default(),
+            histogram_visible: false,
         }
     }
 }
@@ -66,8 +72,9 @@ impl View for EditingView {
                 return Command::perform(services::image::apply(state.image.clone(), state.modifiers.clone()), |r| Message::ImageModified(r));
             }
             Message::ImageModified(image) => {
-                state.handle = ImageHandle::from_pixels(image.width(), image.height(), image.into_vec());
+                state.handle = ImageHandle::from_pixels(image.width(), image.height(), image.to_vec());
                 state.loading = false;
+                return Command::perform(services::image::histogram(image), |r| Message::HistogramRecalculated(r));
             }
             Message::ModifierOptionsChanged(modifier) => {
                 state.selected_modifier = Some((state.selected_modifier.clone().unwrap().0, modifier))
@@ -133,9 +140,16 @@ impl View for EditingView {
                 }, |_| Message::Saved);
             }
             Message::Open(data) => {
-                *app = Fairplay::Editing(EditingView::new(data));
+                *app = Fairplay::Editing(EditingView::new(data.clone()));
+                return Command::perform(services::image::histogram(data), |r| Message::HistogramRecalculated(r));
             }
             Message::Saved => { }
+            Message::HistogramRecalculated(data) => {
+                state.histogram_data = data;
+            }
+            Message::ToggleHistograms => {
+                state.histogram_visible = !state.histogram_visible;
+            }
             _ => { panic!("Invalid message") }
         };
 
@@ -237,12 +251,38 @@ impl View for EditingView {
                         } else { None }
                     )
                 )
+                .push(
+                    button("Toggle histograms").on_press(Message::ToggleHistograms)
+                )
                 .width(Length::Fill)
                 .align_items(Alignment::Start)
                 .spacing(10)
+                .padding(10)
         ).style(container::Appearance::default()
             .with_background(Background::from(Color::new(0.0, 0.0, 0.0, 0.3)))
         );
+
+        let histograms = if self.histogram_visible {
+            let histogram_lightness = histogram(self.histogram_data.lightness.clone(), Color::new(0.5, 0.5, 0.5, 1.0)).width(Length::Fill).height(Length::Fixed(150.0));
+            let histogram_red = histogram(self.histogram_data.red.clone(), Color::new(1.0, 0.0, 0.0, 1.0)).width(Length::Fill).height(Length::Fixed(150.0));
+            let histogram_green = histogram(self.histogram_data.green.clone(), Color::new(0.0, 1.0, 0.0, 1.0)).width(Length::Fill).height(Length::Fixed(150.0));
+            let histogram_blue = histogram(self.histogram_data.blue.clone(), Color::new(0.0, 0.0, 1.0, 1.0)).width(Length::Fill).height(Length::Fixed(150.0));
+
+            let histograms = Container::new(
+                Column::new()
+                    .push(histogram_lightness)
+                    .push(histogram_red)
+                    .push(histogram_green)
+                    .push(histogram_blue)
+                    .spacing(10)
+                    .width(Length::FillPortion(1))
+                    .align_items(Alignment::Start)
+                    .height(Length::Fill)
+            ).style(container::Appearance::default()
+                .with_background(Background::from(Color::new(0.0, 0.0, 0.0, 0.3)))
+            );
+            Some(histograms)
+        } else { None };
 
         let panel = Container::new(
             Column::new()
@@ -261,6 +301,7 @@ impl View for EditingView {
         let row = Row::new()
             .push(image)
             .push(panel)
+            .push_maybe(histograms)
             .height(Length::Fill);
 
         let column = Column::new()

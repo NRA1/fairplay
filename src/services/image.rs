@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use image::{ImageBuffer, Pixel, Rgba, RgbaImage};
+use crate::interface::histogram::Histogram;
 
 use crate::models::modifier::{BoxBlurOptions, ChannelOptions, GaussianBlurOptions, GrayscaleOptions, LightnessCorrectionOptions, MedianBlurOptions, Modifier, NegativeOptions, SobelOptions, ThresholdingOptions, UnsharpMaskingOptions};
 use crate::services::functions::{median, pitagora};
@@ -447,4 +448,30 @@ async fn apply_filter(filter: &Vec<Vec<f32>>, image: &ImageBuffer<Rgba<u8>, Vec<
         let b = bsum.round() as i16;
         Rgba::<i16>([r, g, b, a])
     })
+}
+
+pub async fn histogram(image: RgbaImage) -> Histogram {
+    let mut lightness = vec![0; 32];
+    let mut red = vec![0; 32];
+    let mut green = vec![0; 32];
+    let mut blue = vec![0; 32];
+    let step = (u8::MAX as u16 + 1) as f32 / 32.0;
+
+    image.pixels().for_each(|p| {
+        let r = p.channels()[0];
+        red[(r as f32 / step) as usize] += 1;
+        let g = p.channels()[1];
+        green[(g as f32 / step) as usize] += 1;
+        let b = p.channels()[2];
+        blue[(b as f32 / step) as usize] += 1;
+        let l = r as f32 + g as f32 + b as f32;
+        lightness[(l / (step * 3.0)) as usize] += 1;
+    });
+
+    Histogram {
+        lightness,
+        red,
+        green,
+        blue
+    }
 }

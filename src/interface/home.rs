@@ -11,6 +11,7 @@ use crate::fairplay::{Fairplay, Message};
 use crate::interface::components::with_spinner;
 use crate::interface::editing::EditingView;
 use crate::interface::View;
+use crate::services;
 
 #[derive(Default)]
 pub struct HomeView {
@@ -43,7 +44,8 @@ impl View for HomeView {
                 )
             }
             Message::Open(data) => {
-                *app = Fairplay::Editing(EditingView::new(data));
+                *app = Fairplay::Editing(EditingView::new(data.clone()));
+                return Command::perform(services::image::histogram(data), |r| Message::HistogramRecalculated(r));
             }
             Message::Started => {
 
