@@ -1,8 +1,7 @@
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 
-use iced::{Alignment, Application, Background, Color, Command, Element, Length};
-use iced::futures::AsyncWriteExt;
+use iced::{Alignment, Background, Color, Command, Element, Length};
 use iced::widget::{Button, button, Column, Container, container, pick_list, Row, Space, Text};
 use iced::widget::image::Handle as ImageHandle;
 use iced_aw::{BOOTSTRAP_FONT, BootstrapIcon};
@@ -120,7 +119,7 @@ impl View for EditingView {
                 let image = state.image.clone();
                 let modifiers = state.modifiers.clone();
                 return Command::perform(async {
-                    let mut handle = AsyncFileDialog::new()
+                    let handle = AsyncFileDialog::new()
                         .set_file_name("edited.png")
                         .save_file()
                         .await;
